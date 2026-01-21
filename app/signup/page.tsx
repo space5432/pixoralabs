@@ -64,12 +64,10 @@ export default function SignupPage() {
     }
 
     setBusy(true);
-
     const { error } = await supabase.auth.signUp({
       email,
       password,
     });
-
     setBusy(false);
 
     if (error) {
@@ -77,8 +75,7 @@ export default function SignupPage() {
       return;
     }
 
-    // ✅ Important: Some users get created instantly, some need email confirm.
-    // We will just decide redirect based on current session.
+    // ✅ Some users need email confirm, some get session instantly
     await decideRedirect();
   };
 
@@ -88,27 +85,25 @@ export default function SignupPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        // ✅ After Google login, we decide where to go
         redirectTo: `${window.location.origin}/auth-check`,
       },
     });
 
     setBusy(false);
-
     if (error) alert(error.message);
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#071021] via-[#071B33] to-[#05070D]" />
-      <AnimatedBackground />
+    <div className="min-h-screen relative overflow-hidden bg-slate-950 text-slate-200">
+      {/* ✅ Background same as login page (black/grey glow) */}
+      <div className="pointer-events-none fixed inset-0">
+        <div className="absolute -top-40 left-1/2 -translate-x-1/2 h-[520px] w-[520px] rounded-full bg-slate-500/10 blur-3xl animate-pulse" />
+        <div className="absolute top-24 right-[-140px] h-[420px] w-[420px] rounded-full bg-zinc-500/10 blur-3xl animate-pulse" />
+        <div className="absolute bottom-[-220px] left-[-180px] h-[520px] w-[520px] rounded-full bg-neutral-500/10 blur-3xl animate-pulse" />
+      </div>
 
-      {/* Center */}
+      {/* ✅ Center */}
       <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
-        {/* Glow behind card */}
-        <div className="absolute w-[520px] h-[520px] rounded-full bg-cyan-400/15 blur-3xl animate-softPulse" />
-
         <div
           className={[
             "w-full max-w-md rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl p-7",
@@ -153,6 +148,7 @@ export default function SignupPage() {
               onClick={signupWithEmail}
               disabled={busy}
               className="mt-2 px-5 py-3 rounded-2xl bg-white text-slate-900 font-extrabold hover:bg-white/90 hover:-translate-y-[1px] active:translate-y-0 transition disabled:opacity-60"
+              type="button"
             >
               {busy ? "Please wait..." : "Create Account"}
             </button>
@@ -168,6 +164,7 @@ export default function SignupPage() {
               onClick={signupWithGoogle}
               disabled={busy}
               className="px-5 py-3 rounded-2xl border border-white/10 bg-white/10 text-white font-extrabold hover:bg-white/15 hover:-translate-y-[1px] active:translate-y-0 transition disabled:opacity-60"
+              type="button"
             >
               Continue with Google
             </button>
@@ -178,6 +175,7 @@ export default function SignupPage() {
               <button
                 onClick={() => router.push("/login")}
                 className="text-white font-extrabold hover:underline underline-offset-4"
+                type="button"
               >
                 Login
               </button>
@@ -186,79 +184,13 @@ export default function SignupPage() {
             <button
               onClick={() => router.push("/")}
               className="mt-2 text-center text-xs text-white/40 hover:text-white/70 transition"
+              type="button"
             >
               ← Back to home
             </button>
           </div>
         </div>
       </div>
-
-      {/* Animations */}
-      <style jsx global>{`
-        @keyframes softPulse {
-          0%,
-          100% {
-            opacity: 0.6;
-            transform: scale(1);
-          }
-          50% {
-            opacity: 1;
-            transform: scale(1.05);
-          }
-        }
-        .animate-softPulse {
-          animation: softPulse 6s ease-in-out infinite;
-        }
-      `}</style>
-    </div>
-  );
-}
-
-function AnimatedBackground() {
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      <div className="absolute -top-40 -left-40 h-[420px] w-[420px] rounded-full bg-blue-500/20 blur-3xl animate-blob1" />
-      <div className="absolute top-40 -right-40 h-[480px] w-[480px] rounded-full bg-cyan-400/20 blur-3xl animate-blob2" />
-      <div className="absolute bottom-[-180px] left-[35%] h-[520px] w-[520px] rounded-full bg-indigo-500/15 blur-3xl animate-blob3" />
-
-      <style jsx global>{`
-        @keyframes blob1 {
-          0%,
-          100% {
-            transform: translate(0px, 0px) scale(1);
-          }
-          50% {
-            transform: translate(50px, 30px) scale(1.08);
-          }
-        }
-        @keyframes blob2 {
-          0%,
-          100% {
-            transform: translate(0px, 0px) scale(1);
-          }
-          50% {
-            transform: translate(-40px, 20px) scale(1.06);
-          }
-        }
-        @keyframes blob3 {
-          0%,
-          100% {
-            transform: translate(0px, 0px) scale(1);
-          }
-          50% {
-            transform: translate(30px, -25px) scale(1.1);
-          }
-        }
-        .animate-blob1 {
-          animation: blob1 10s ease-in-out infinite;
-        }
-        .animate-blob2 {
-          animation: blob2 12s ease-in-out infinite;
-        }
-        .animate-blob3 {
-          animation: blob3 14s ease-in-out infinite;
-        }
-      `}</style>
     </div>
   );
 }
