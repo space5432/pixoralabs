@@ -1,223 +1,246 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function LoginPage() {
   const router = useRouter();
 
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [busy, setBusy] = useState(false);
+
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
 
   const loginWithEmail = async () => {
-    if (!email.trim() || !password.trim()) {
-      alert("Please enter email and password.");
-      return;
+    setMsg(null);
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (error) {
+        setMsg(error.message);
+        return;
+      }
+
+      router.push("/auth-check");
+    } catch (e: any) {
+      setMsg(e?.message ?? "Login failed");
+    } finally {
+      setLoading(false);
     }
-
-    setBusy(true);
-
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    setBusy(false);
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    router.push("/dashboard");
   };
 
   const loginWithGoogle = async () => {
-    setBusy(true);
+    setMsg(null);
+    setLoading(true);
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-     redirectTo: `${window.location.origin}/auth-check`,
-  },
-});
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth-check`,
+        },
+      });
 
-    setBusy(false);
+      if (error) {
+        setMsg(error.message);
+      }
+    } catch (e: any) {
+      setMsg(e?.message ?? "Google login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    if (error) alert(error.message);
+  const forgotPassword = async () => {
+    setMsg(null);
+    if (!email.trim()) {
+      setMsg("Enter your email first, then click Forgot password.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/login`,
+      });
+
+      if (error) {
+        setMsg(error.message);
+        return;
+      }
+
+      setMsg("✅ Password reset email sent. Check your inbox/spam.");
+    } catch (e: any) {
+      setMsg(e?.message ?? "Failed to send reset email");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#071021] via-[#071B33] to-[#05070D]" />
-      <AnimatedBackground />
-
-      {/* Center */}
-      <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
-        {/* Glow behind card */}
-        <div className="absolute w-[520px] h-[520px] rounded-full bg-blue-500/15 blur-3xl animate-softPulse" />
-
-        <div
-          className={[
-            "w-full max-w-md rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl p-7",
-            "transition-all duration-700",
-            mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6",
-          ].join(" ")}
-        >
-          {/* Header */}
-          <div className="text-center">
-            <p className="text-white font-extrabold text-2xl">Welcome back</p>
-            <p className="text-white/70 text-sm mt-2 leading-relaxed">
-              Login to manage UGC projects, creators, and orders.
-            </p>
-          </div>
-
-          {/* Form */}
-          <div className="mt-7 grid gap-3">
-            <div>
-              <p className="text-sm font-bold text-white/80 mb-2">Email</p>
-              <input
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="w-full rounded-2xl border border-white/10 bg-white/10 p-3 text-white placeholder:text-white/50 outline-none focus:border-white/30 focus:bg-white/15 transition"
-              />
-            </div>
-
-            <div>
-              <p className="text-sm font-bold text-white/80 mb-2">Password</p>
-              <input
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                type="password"
-                className="w-full rounded-2xl border border-white/10 bg-white/10 p-3 text-white placeholder:text-white/50 outline-none focus:border-white/30 focus:bg-white/15 transition"
-              />
-            </div>
-            
-<button
-  onClick={() => router.push("/forgot-password")}
-  className="text-right text-xs text-white/60 hover:text-white transition"
->
-  Forgot password?
-</button>
-
-            <button
-              onClick={loginWithEmail}
-              disabled={busy}
-              className="mt-2 px-5 py-3 rounded-2xl bg-white text-slate-900 font-extrabold hover:bg-white/90 hover:-translate-y-[1px] active:translate-y-0 transition disabled:opacity-60"
-            >
-              {busy ? "Please wait..." : "Login"}
-            </button>
-
-            {/* Divider */}
-            <div className="my-2 flex items-center gap-3">
-              <div className="h-px bg-white/10 flex-1" />
-              <p className="text-xs text-white/50 font-semibold">OR</p>
-              <div className="h-px bg-white/10 flex-1" />
-            </div>
-
-            <button
-              onClick={loginWithGoogle}
-              disabled={busy}
-              className="px-5 py-3 rounded-2xl border border-white/10 bg-white/10 text-white font-extrabold hover:bg-white/15 hover:-translate-y-[1px] active:translate-y-0 transition disabled:opacity-60"
-            >
-              Continue with Google
-            </button>
-
-            {/* Footer */}
-            <p className="text-center text-sm text-white/65 mt-3">
-              New here?{" "}
-              <button
-                onClick={() => router.push("/signup")}
-                className="text-white font-extrabold hover:underline underline-offset-4"
-              >
-                Create account
-              </button>
-            </p>
-
-            <button
-              onClick={() => router.push("/")}
-              className="mt-2 text-center text-xs text-white/40 hover:text-white/70 transition"
-            >
-              ← Back to home
-            </button>
-          </div>
-        </div>
+    <div className="min-h-screen bg-slate-950 text-slate-200 overflow-x-hidden">
+      {/* Background glow */}
+      <div className="pointer-events-none fixed inset-0">
+        <div className="absolute -top-40 left-1/2 -translate-x-1/2 h-[520px] w-[520px] rounded-full bg-slate-500/10 blur-3xl animate-pulse" />
+        <div className="absolute top-24 right-[-140px] h-[420px] w-[420px] rounded-full bg-zinc-500/10 blur-3xl animate-pulse" />
+        <div className="absolute bottom-[-220px] left-[-180px] h-[520px] w-[520px] rounded-full bg-neutral-500/10 blur-3xl animate-pulse" />
       </div>
 
-      {/* Animations */}
-      <style jsx global>{`
-        @keyframes softPulse {
-          0%,
-          100% {
-            opacity: 0.6;
-            transform: scale(1);
-          }
-          50% {
-            opacity: 1;
-            transform: scale(1.05);
-          }
-        }
-        .animate-softPulse {
-          animation: softPulse 6s ease-in-out infinite;
-        }
-      `}</style>
-    </div>
-  );
-}
+      <div className="relative z-10">
+        {/* Top bar */}
+        <div className="max-w-6xl mx-auto px-4 py-6 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2">
+            <div className="h-10 w-10 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center font-black text-white">
+              P
+            </div>
+            <div className="font-extrabold tracking-wide text-white">
+              PIXORALABS
+            </div>
+          </Link>
 
-function AnimatedBackground() {
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      <div className="absolute -top-40 -left-40 h-[420px] w-[420px] rounded-full bg-blue-500/20 blur-3xl animate-blob1" />
-      <div className="absolute top-40 -right-40 h-[480px] w-[480px] rounded-full bg-cyan-400/20 blur-3xl animate-blob2" />
-      <div className="absolute bottom-[-180px] left-[35%] h-[520px] w-[520px] rounded-full bg-indigo-500/15 blur-3xl animate-blob3" />
+          <Link
+            href="/signup"
+            className="px-4 py-2 rounded-xl border border-white/15 text-white hover:bg-white/10 transition"
+          >
+            Create account
+          </Link>
+        </div>
 
-      <style jsx global>{`
-        @keyframes blob1 {
-          0%,
-          100% {
-            transform: translate(0px, 0px) scale(1);
-          }
-          50% {
-            transform: translate(50px, 30px) scale(1.08);
-          }
-        }
-        @keyframes blob2 {
-          0%,
-          100% {
-            transform: translate(0px, 0px) scale(1);
-          }
-          50% {
-            transform: translate(-40px, 20px) scale(1.06);
-          }
-        }
-        @keyframes blob3 {
-          0%,
-          100% {
-            transform: translate(0px, 0px) scale(1);
-          }
-          50% {
-            transform: translate(30px, -25px) scale(1.1);
-          }
-        }
-        .animate-blob1 {
-          animation: blob1 10s ease-in-out infinite;
-        }
-        .animate-blob2 {
-          animation: blob2 12s ease-in-out infinite;
-        }
-        .animate-blob3 {
-          animation: blob3 14s ease-in-out infinite;
-        }
-      `}</style>
+        {/* Main */}
+        <div className="max-w-6xl mx-auto px-4 pb-16 pt-6 grid lg:grid-cols-2 gap-10 items-center">
+          {/* Left */}
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-sm text-slate-200">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              Secure login for creators & startups
+            </div>
+
+            <h1 className="mt-4 text-4xl md:text-5xl font-extrabold text-white leading-tight">
+              Welcome back.
+              <br />
+              <span className="text-white/70">Continue your UGC workflow.</span>
+            </h1>
+
+            <p className="mt-4 text-white/60 max-w-xl leading-relaxed">
+              Log in to hire creators, track projects, and manage submissions —
+              all in one clean workspace.
+            </p>
+
+            <div className="mt-6 flex gap-3">
+              <Link
+                href="/"
+                className="px-5 py-3 rounded-xl border border-white/15 text-white hover:bg-white/10 transition"
+              >
+                Back to Home
+              </Link>
+              <Link
+                href="/signup"
+                className="px-5 py-3 rounded-xl bg-white/10 border border-white/10 text-white font-bold hover:bg-white/15 transition"
+              >
+                New here? Sign up
+              </Link>
+            </div>
+          </div>
+
+          {/* Right: Login Card */}
+          <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur p-6 shadow-xl">
+            <h2 className="text-white font-extrabold text-2xl">Login</h2>
+            <p className="text-white/60 text-sm mt-1">
+              Use email/password or continue with Google.
+            </p>
+
+            {msg && (
+              <div className="mt-4 rounded-2xl border border-white/10 bg-black/30 px-4 py-3">
+                <p className="text-sm text-white">{msg}</p>
+              </div>
+            )}
+
+            <div className="mt-5 grid gap-3">
+              {/* Google */}
+              <button
+                onClick={loginWithGoogle}
+                disabled={loading}
+                className="w-full rounded-2xl border border-white/10 bg-white/10 py-3 text-white font-bold hover:bg-white/15 transition disabled:opacity-60"
+              >
+                {loading ? "Please wait..." : "Continue with Google"}
+              </button>
+
+              <div className="flex items-center gap-3 my-1">
+                <div className="h-px flex-1 bg-white/10" />
+                <span className="text-xs text-white/40">OR</span>
+                <div className="h-px flex-1 bg-white/10" />
+              </div>
+
+              {/* Email */}
+              <div>
+                <p className="text-white/70 text-sm font-bold mb-2">Email</p>
+                <input
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="w-full rounded-2xl border border-white/10 bg-white/10 p-3 text-white placeholder:text-white/40 outline-none focus:border-white/25"
+                />
+              </div>
+
+              {/* Password */}
+              <div>
+                <p className="text-white/70 text-sm font-bold mb-2">
+                  Password
+                </p>
+                <input
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  type="password"
+                  placeholder="••••••••"
+                  className="w-full rounded-2xl border border-white/10 bg-white/10 p-3 text-white placeholder:text-white/40 outline-none focus:border-white/25"
+                />
+              </div>
+
+              {/* Forgot */}
+              <button
+                onClick={forgotPassword}
+                disabled={loading}
+                className="text-left text-sm text-white/70 hover:text-white transition"
+              >
+                Forgot password?
+              </button>
+
+              {/* Login button */}
+              <button
+                onClick={loginWithEmail}
+                disabled={loading}
+                className="w-full rounded-2xl bg-gradient-to-r from-slate-200/20 to-white/10 border border-white/10 py-3 text-white font-extrabold hover:bg-white/15 transition disabled:opacity-60"
+              >
+                {loading ? "Logging in..." : "Login"}
+              </button>
+
+              <p className="text-xs text-white/50 mt-2">
+                By continuing you agree to our platform terms and workflow rules.
+              </p>
+
+              <p className="text-sm text-white/60 mt-2">
+                Don’t have an account?{" "}
+                <Link href="/signup" className="text-white font-bold underline">
+                  Create one
+                </Link>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="max-w-6xl mx-auto px-4 pb-10 text-xs text-white/40">
+          © {new Date().getFullYear()} PixoraLabs. All rights reserved.
+        </div>
+      </div>
     </div>
   );
 }
