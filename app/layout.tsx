@@ -1,7 +1,7 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "MediaMatrix",
+  title: "PixoraLabs",
   description: "UGC marketplace",
 };
 

@@ -7,7 +7,7 @@ type StartupTab = "dashboard" | "marketplace" | "orders" | "profile";
 export default function StartupSidebar({
   activeTab,
   onTabChange,
-  brandName = "MediaMatrix",
+  brandName = "PixoraLabs",
 }: {
   activeTab: StartupTab;
   onTabChange: (tab: StartupTab) => void;
@@ -83,7 +83,7 @@ export default function StartupSidebar({
           </button>
         </div>
 
-        <p className="text-xs text-white/40 mt-4 text-center">© 2026 MediaMatrix</p>
+        <p className="text-xs text-white/40 mt-4 text-center">© 2026 PixoraLabs</p>
       </div>
     </aside>
   );

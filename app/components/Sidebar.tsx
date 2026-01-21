@@ -23,7 +23,7 @@ export default function Sidebar({ active, roleLabel, onNavigate }: SidebarProps)
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xl font-extrabold text-white">MediaMatrix</p>
+          <p className="text-xl font-extrabold text-white">PixoraLabs</p>
           <p className="text-sm text-white/60 mt-1">{roleLabel}</p>
         </div>
 
@@ -69,7 +69,7 @@ export default function Sidebar({ active, roleLabel, onNavigate }: SidebarProps)
         </button>
       </div>
 
-      <p className="text-xs text-white/40 mt-5">© 2026 MediaMatrix</p>
+      <p className="text-xs text-white/40 mt-5">© 2026 PixoraLabs</p>
     </div>
   );
 }

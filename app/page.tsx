@@ -22,13 +22,13 @@ export default function HomePage() {
               M
             </div>
             <div className="font-extrabold tracking-wide text-white">
-              MEDIAMATRIX
+              PIXORALABS
             </div>
           </div>
 
           <nav className="hidden md:flex items-center gap-6 text-sm text-slate-300">
             <a href="#why" className="hover:text-white transition">
-              Why MediaMatrix
+              Why PixoraLabs
             </a>
             <a href="#how" className="hover:text-white transition">
               How it works
@@ -84,7 +84,7 @@ export default function HomePage() {
               </h1>
 
               <p className="mt-4 text-slate-300 leading-relaxed max-w-xl">
-                MediaMatrix connects startups that need high-performing content
+                PixoraLabs connects startups that need high-performing content
                 with creators who want consistent paid projects.
                 <br />
                 No agency markups. No unrealistic deals. Just clear briefs, fast
@@ -153,7 +153,7 @@ export default function HomePage() {
         <section id="why" className="max-w-7xl mx-auto px-4 pb-16 pt-6">
           <div className="animate-slide-up">
             <h2 className="text-2xl md:text-3xl font-bold text-white">
-              Why MediaMatrix exists
+              Why PixoraLabs exists
             </h2>
             <p className="text-slate-300 mt-2 max-w-3xl">
               Startups should not have to pay premium agency pricing to test
@@ -228,7 +228,7 @@ export default function HomePage() {
             </h2>
             <p className="text-slate-300 mt-2 max-w-3xl">
               Whether you are launching a new product or building your creator
-              career, MediaMatrix gives you a professional system to work with
+              career, PixoraLabs gives you a professional system to work with
               clarity.
             </p>
           </div>
@@ -273,7 +273,7 @@ export default function HomePage() {
           <div className="mt-8 space-y-4 max-w-3xl">
             <Faq
               q="Is this platform only for big brands?"
-              a="No. MediaMatrix is made for early-stage startups and small teams that want UGC without paying agency-level pricing."
+              a="No. PixoraLabs is made for early-stage startups and small teams that want UGC without paying agency-level pricing."
             />
             <Faq
               q="Do creators need huge followers?"
@@ -306,7 +306,7 @@ export default function HomePage() {
       {/* FOOTER */}
       <footer className="border-t border-white/10">
         <div className="max-w-7xl mx-auto px-4 py-8 text-sm text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p>© {new Date().getFullYear()} MEDIAMATRIX</p>
+          <p>© {new Date().getFullYear()} PixoraLabs</p>
           <div className="flex gap-4">
             <Link className="hover:text-white transition" href="/login">
               Login

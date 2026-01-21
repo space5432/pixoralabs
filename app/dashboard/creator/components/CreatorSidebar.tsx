@@ -7,7 +7,7 @@ type CreatorTab = "dashboard" | "orders" | "deliveries" | "profile";
 export default function CreatorSidebar({
   activeTab,
   onTabChange,
-  brandName = "MediaMatrix",
+  brandName = "PixoraLabs",
 }: {
   activeTab: CreatorTab;
   onTabChange: (tab: CreatorTab) => void;
@@ -82,7 +82,7 @@ export default function CreatorSidebar({
           </button>
         </div>
 
-        <p className="text-xs text-white/40 mt-4 text-center">© 2026 MediaMatrix</p>
+        <p className="text-xs text-white/40 mt-4 text-center">© 2026 PixoraLabs</p>
       </div>
     </aside>
   );

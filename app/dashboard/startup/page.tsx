@@ -386,7 +386,7 @@ export default function StartupDashboardPage() {
             </div>
             <div>
               <p className="text-white font-extrabold leading-tight">
-                MediaMatrix UGC Marketplace
+                PixoraLabs UGC Marketplace
               </p>
               <p className="text-white/60 text-xs">Startup Workspace</p>
             </div>
@@ -1274,7 +1274,7 @@ function HireModal(props: {
               <input
                 value={props.companyName}
                 onChange={(e) => props.setCompanyName(e.target.value)}
-                placeholder="Example: MediaMatrix"
+                placeholder="Example: PixoraLabs"
                 className="w-full rounded-2xl border border-white/10 bg-white/10 p-3 text-white placeholder:text-white/40 outline-none focus:border-white/25"
               />
             </Field>

@@ -99,7 +99,7 @@ export default function ChooseRolePage() {
             Choose your role
           </p>
           <p className="text-white/70 text-sm mt-2 text-center max-w-2xl mx-auto">
-            Select how you want to use MediaMatrix. You can switch later, but
+            Select how you want to use PixoraLabs. You can switch later, but
             this helps us set up your dashboard correctly.
           </p>
 
