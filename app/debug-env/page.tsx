@@ -7,7 +7,8 @@ export default function DebugEnvPage() {
 
       <div className="mt-6 space-y-3 text-sm">
         <p>
-          <b>Origin:</b> {typeof window !== "undefined" ? window.location.origin : "server"}
+          <b>Origin:</b>{" "}
+          {typeof window !== "undefined" ? window.location.origin : "server"}
         </p>
 
         <p>
@@ -16,7 +17,8 @@ export default function DebugEnvPage() {
         </p>
 
         <p className="break-all">
-          <b>URL value:</b> {process.env.NEXT_PUBLIC_SUPABASE_URL || "null"}
+          <b>URL value:</b>{" "}
+          {process.env.NEXT_PUBLIC_SUPABASE_URL || "null"}
         </p>
 
         <p>
