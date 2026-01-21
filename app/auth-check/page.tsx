@@ -9,15 +9,19 @@ export default function AuthCheckPage() {
 
   useEffect(() => {
     const run = async () => {
-      const { data } = await supabase.auth.getUser();
-      const user = data.user;
+      // ✅ 1) Most reliable after OAuth redirect
+      const { data: sessionData } = await supabase.auth.getSession();
+      const sessionUser = sessionData.session?.user;
+
+      // ✅ 2) fallback
+      const { data: userData } = await supabase.auth.getUser();
+      const user = sessionUser ?? userData.user;
 
       if (!user) {
         router.replace("/login");
         return;
       }
 
-      // get role from profiles table
       const { data: profile } = await supabase
         .from("profiles")
         .select("role")
@@ -29,11 +33,8 @@ export default function AuthCheckPage() {
         return;
       }
 
-      if (profile.role === "startup") {
-        router.replace("/dashboard/startup");
-      } else {
-        router.replace("/dashboard/creator");
-      }
+      if (profile.role === "startup") router.replace("/dashboard/startup");
+      else router.replace("/dashboard/creator");
     };
 
     run();
@@ -41,7 +42,7 @@ export default function AuthCheckPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-black text-white">
-      <p className="text-sm font-bold">Logging you in...</p>
+      <p className="text-sm font-bold">Finishing login...</p>
     </div>
   );
 }
