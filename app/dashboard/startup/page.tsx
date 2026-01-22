@@ -353,12 +353,11 @@ export default function StartupDashboardPage() {
     setActiveTab("projects");
   };
 
-  const totalSpendCompleted = useMemo(() => {
-    return orders
-      .filter((o) => o.status === "completed")
-      .reduce((sum, o) => sum + (o.price ?? 0), 0);
-  }, [orders]);
-
+const totalSpendDelivered = useMemo(() => {
+  return orders
+    .filter((o) => o.status === "delivered")
+    .reduce((sum, o) => sum + (o.price ?? 0), 0);
+}, [orders]);
   const activeProjectsCount = useMemo(() => {
     return orders.filter((o) =>
       ["pending", "accepted", "in_progress", "submitted"].includes(o.status)
@@ -532,11 +531,12 @@ export default function StartupDashboardPage() {
             {activeTab === "dashboard" && (
               <div className="space-y-6">
                 <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
-                  <MetricCard
-                    title="Total Spend (Completed)"
-                    value={`₹${totalSpendCompleted}`}
-                    sub="Based on completed orders"
-                  />
+            <MetricCard
+  title="Total Spend (Delivered)"
+  value={`₹${totalSpendDelivered}`}
+  sub="Based on delivered orders"
+/>
+                  
                   <MetricCard
                     title="Active Projects"
                     value={`${activeProjectsCount}`}
