@@ -33,7 +33,10 @@ type OrderRow = {
   company_website?: string | null;
   instagram_handle?: string | null;
   deadline_days?: number | null;
+
+  // ✅ IMPORTANT: startup uses price, older code may use budget
   budget?: number | null;
+  price?: number | null;
 
   created_at: string;
   updated_at?: string | null;
@@ -163,7 +166,7 @@ export default function CreatorDashboardPage() {
   const completedEarnings = useMemo(() => {
     return orders
       .filter((o) => o.status === "completed")
-      .reduce((sum, o) => sum + (o.budget ?? 0), 0);
+      .reduce((sum, o) => sum + Number(o.price ?? o.budget ?? 0), 0);
   }, [orders]);
 
   // ✅ Weekly chart values (last 7 days) from completed orders
@@ -181,7 +184,7 @@ export default function CreatorDashboardPage() {
       const value = orders
         .filter((o) => o.status === "completed")
         .filter((o) => (o.updated_at ?? o.created_at).slice(0, 10) === key)
-        .reduce((sum, o) => sum + (o.budget ?? 0), 0);
+        .reduce((sum, o) => sum + Number(o.price ?? o.budget ?? 0), 0);
 
       arr.push({ label, value });
     }
@@ -202,7 +205,7 @@ export default function CreatorDashboardPage() {
     setSelectedFile(null);
   };
 
-  // ✅ ACCEPT / REJECT from your existing logic
+  // ✅ ACCEPT / REJECT
   const acceptOrder = async (orderId: string) => {
     if (!profile?.id) return;
 
@@ -213,8 +216,22 @@ export default function CreatorDashboardPage() {
 
     if (error) return alert(error.message);
 
-    alert("✅ Order accepted");
+    // ✅ refresh list
     await refreshOrders(profile.id);
+
+    // ✅ fetch updated order and open it directly
+    const { data: updatedOrder, error: fetchErr } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (!fetchErr && updatedOrder) {
+      openOrder(updatedOrder as OrderRow);
+    }
+
+    setTab("orders");
+    alert("✅ Order accepted");
   };
 
   const rejectOrder = async (orderId: string) => {
@@ -229,6 +246,7 @@ export default function CreatorDashboardPage() {
 
     alert("✅ Order rejected");
     await refreshOrders(profile.id);
+    setSelectedOrder(null);
   };
 
   // ✅ Upload MP4 but ONLY when user clicks Confirm Upload
@@ -282,6 +300,15 @@ export default function CreatorDashboardPage() {
       setDriveLink("");
 
       await refreshOrders(profile.id);
+
+      // ✅ Keep updated order open
+      const { data: updatedOrder } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("id", orderId)
+        .maybeSingle();
+
+      if (updatedOrder) openOrder(updatedOrder as OrderRow);
     } catch (e: any) {
       alert("Upload failed: " + (e?.message ?? "Unknown error"));
     } finally {
@@ -322,6 +349,15 @@ export default function CreatorDashboardPage() {
     setSelectedFile(null);
 
     await refreshOrders(profile.id);
+
+    // ✅ Keep updated order open
+    const { data: updatedOrder } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (updatedOrder) openOrder(updatedOrder as OrderRow);
   };
 
   const removeSelectedFile = () => {
@@ -431,7 +467,7 @@ export default function CreatorDashboardPage() {
                 </TabDark>
               </div>
 
-              {/* ✅ Dashboard tab: KEEP SAME + ADD CHART */}
+              {/* ✅ Dashboard tab */}
               {!selectedOrder && tab === "dashboard" && (
                 <>
                   <div className="mt-7 grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -455,7 +491,7 @@ export default function CreatorDashboardPage() {
                     />
                   </div>
 
-                  {/* ✅ NEW: Weekly earnings chart */}
+                  {/* ✅ Weekly earnings chart */}
                   <div className="mt-6 rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl p-6">
                     <div className="flex items-end justify-between gap-4">
                       <div>
@@ -512,7 +548,7 @@ export default function CreatorDashboardPage() {
                 </div>
               )}
 
-              {/* Deliveries tab (just guidance) */}
+              {/* Deliveries tab */}
               {!selectedOrder && tab === "deliveries" && (
                 <div className="mt-7 rounded-3xl border border-white/10 bg-white/5 p-6">
                   <p className="text-white font-extrabold text-lg">Deliveries</p>
@@ -548,7 +584,7 @@ export default function CreatorDashboardPage() {
                 </div>
               )}
 
-              {/* ✅ FULL ORDER VIEW (same style, only improved upload) */}
+              {/* ✅ FULL ORDER VIEW */}
               {selectedOrder && (
                 <div className="mt-7 rounded-3xl border border-white/10 bg-white/5 p-6">
                   <div className="flex items-start justify-between gap-4">
@@ -572,7 +608,10 @@ export default function CreatorDashboardPage() {
 
                   <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
                     <InfoBox label="Status" value={selectedOrder.status} />
-                    <InfoBox label="Budget" value={`₹ ${selectedOrder.budget ?? 0}`} />
+                    <InfoBox
+                      label="Budget"
+                      value={`₹ ${Number(selectedOrder.price ?? selectedOrder.budget ?? 0)}`}
+                    />
                     <InfoBox
                       label="Deadline"
                       value={`${selectedOrder.deadline_days ?? "-"} days`}
@@ -618,7 +657,7 @@ export default function CreatorDashboardPage() {
                     </div>
                   )}
 
-                  {/* ✅ Delivery section - FIXED */}
+                  {/* ✅ Delivery section */}
                   {(selectedOrder.status === "in_progress" ||
                     selectedOrder.status === "revision_requested") && (
                     <div className="mt-6 rounded-3xl border border-white/10 bg-gradient-to-b from-white/10 to-white/5 p-5 shadow-lg">
@@ -714,17 +753,18 @@ export default function CreatorDashboardPage() {
                             {selectedFile && (
                               <div className="mt-3 rounded-2xl border border-white/10 bg-white/5 p-3 flex items-center justify-between gap-3">
                                 <div className="min-w-0">
-                                  <p className="text-sm font-bold truncate">
+                                  <p className="text-sm font-bold truncate text-white">
                                     {selectedFile.name}
                                   </p>
                                   <p className="text-xs text-white/60">
-                                    {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
+                                    {(selectedFile.size / (1024 * 1024)).toFixed(2)}{" "}
+                                    MB
                                   </p>
                                 </div>
 
                                 <button
                                   onClick={removeSelectedFile}
-                                  className="px-3 py-2 rounded-xl border border-white/10 bg-white/10 hover:bg-white/15 transition text-xs font-bold"
+                                  className="px-3 py-2 rounded-xl border border-white/10 bg-white/10 hover:bg-white/15 transition text-xs font-bold text-white"
                                 >
                                   Remove
                                 </button>
@@ -772,7 +812,8 @@ export default function CreatorDashboardPage() {
                       )}
 
                       <p className="text-sm text-white/60 mt-3">
-                        Status: <b className="text-white">{selectedOrder.status}</b>
+                        Status:{" "}
+                        <b className="text-white">{selectedOrder.status}</b>
                       </p>
                     </div>
                   )}
