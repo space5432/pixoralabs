@@ -4,7 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
-type Tab = "dashboard" | "marketplace" | "projects" | "messages" | "billing";
+type Tab =
+  | "dashboard"
+  | "marketplace"
+  | "projects"
+  | "delivered"
+  | "messages"
+  | "billing";
 
 type CreatorRow = {
   user_id: string;
@@ -182,7 +188,7 @@ export default function StartupDashboardPage() {
 
       setStartupProfile(sp as StartupProfile);
 
-      // creators (IMPORTANT: include thumbnail_url)
+      // creators
       const { data: creatorsData, error: creatorsErr } = await supabase
         .from("creator_profiles")
         .select(
@@ -210,7 +216,6 @@ export default function StartupDashboardPage() {
         .order("created_at", { ascending: false });
 
       setOrders((ordersData ?? []) as OrderRow[]);
-
       setLoading(false);
     };
 
@@ -287,7 +292,9 @@ export default function StartupDashboardPage() {
 
     // ✅ optional by default, required for physical
     if (productType === "physical" && productFiles.length === 0) {
-      alert("For physical products, please upload at least 1 product image/video.");
+      alert(
+        "For physical products, please upload at least 1 product image/video."
+      );
       return;
     }
 
@@ -346,16 +353,25 @@ export default function StartupDashboardPage() {
     setActiveTab("projects");
   };
 
-const totalSpendCompleted = useMemo(() => {
-  return orders
-    .filter((o) => o.status === "delivered")
-    .reduce((sum, o) => sum + (o.price ?? 0), 0);
-}, [orders]);
+  const totalSpendCompleted = useMemo(() => {
+    return orders
+      .filter((o) => o.status === "completed")
+      .reduce((sum, o) => sum + (o.price ?? 0), 0);
+  }, [orders]);
 
   const activeProjectsCount = useMemo(() => {
     return orders.filter((o) =>
       ["pending", "accepted", "in_progress", "submitted"].includes(o.status)
     ).length;
+  }, [orders]);
+
+  // ✅ NEW: Delivered workspace separation
+  const deliveredOrders = useMemo(() => {
+    return orders.filter((o) => o.status === "delivered");
+  }, [orders]);
+
+  const nonDeliveredOrders = useMemo(() => {
+    return orders.filter((o) => o.status !== "delivered");
   }, [orders]);
 
   if (loading) {
@@ -382,7 +398,7 @@ const totalSpendCompleted = useMemo(() => {
         <div className="max-w-[1400px] mx-auto px-6 py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-red-500 flex items-center justify-center font-black text-white">
-              M
+              P
             </div>
             <div>
               <p className="text-white font-extrabold leading-tight">
@@ -406,15 +422,16 @@ const totalSpendCompleted = useMemo(() => {
             </div>
 
             <button
+              onClick={() => router.push("/profile/view")}
+              className="px-4 py-2 rounded-2xl bg-white/10 border border-white/10 text-white font-bold hover:bg-white/15 transition"
+            >
+              Profile
+            </button>
+
+            <button
               onClick={logout}
               className="px-4 py-2 rounded-2xl bg-white/10 border border-white/10 text-white font-bold hover:bg-white/15 transition"
             >
-      <div
-  onClick={() => router.push("/profile/view")}
-  className="px-4 py-2 rounded-2xl bg-white/10 border border-white/10 text-white font-bold hover:bg-white/15 transition cursor-pointer select-none"
->
-  Profile
-</div>
               Sign Out
             </button>
           </div>
@@ -446,6 +463,11 @@ const totalSpendCompleted = useMemo(() => {
                 active={activeTab === "projects"}
                 onClick={() => setActiveTab("projects")}
                 label="My Projects"
+              />
+              <SideBtn
+                active={activeTab === "delivered"}
+                onClick={() => setActiveTab("delivered")}
+                label="Delivered Products"
               />
               <SideBtn
                 active={activeTab === "messages"}
@@ -501,8 +523,6 @@ const totalSpendCompleted = useMemo(() => {
                   calm workspace.
                 </p>
               </div>
-
-              {/* ✅ Removed Launch Campaign + Download Report */}
             </div>
           </div>
 
@@ -511,7 +531,6 @@ const totalSpendCompleted = useMemo(() => {
             {/* DASHBOARD */}
             {activeTab === "dashboard" && (
               <div className="space-y-6">
-                {/* Metrics */}
                 <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
                   <MetricCard
                     title="Total Spend (Completed)"
@@ -531,7 +550,6 @@ const totalSpendCompleted = useMemo(() => {
                   <MetricCard title="Platform Rating" value="Elite" sub="Demo status" />
                 </div>
 
-                {/* Activity / Orders preview */}
                 <div className="grid lg:grid-cols-[1.3fr_0.7fr] gap-4">
                   <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
                     <p className="text-white font-extrabold">
@@ -552,7 +570,8 @@ const totalSpendCompleted = useMemo(() => {
                             key={o.id}
                             onClick={() => {
                               setSelectedOrder(o);
-                              setActiveTab("projects");
+                              if (o.status === "delivered") setActiveTab("delivered");
+                              else setActiveTab("projects");
                             }}
                             className="w-full text-left rounded-2xl border border-white/10 bg-black/20 p-4 hover:bg-black/30 transition"
                           >
@@ -590,8 +609,8 @@ const totalSpendCompleted = useMemo(() => {
                         onClick={() => setActiveTab("projects")}
                       />
                       <QuickBtn
-                        label="Billing (coming soon)"
-                        onClick={() => setActiveTab("billing")}
+                        label="Delivered products"
+                        onClick={() => setActiveTab("delivered")}
                       />
                     </div>
                   </div>
@@ -603,7 +622,9 @@ const totalSpendCompleted = useMemo(() => {
             {activeTab === "marketplace" && (
               <div className="space-y-5">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                  <p className="text-white font-extrabold text-lg">Marketplace</p>
+                  <p className="text-white font-extrabold text-lg">
+                    Marketplace
+                  </p>
 
                   <input
                     value={search}
@@ -650,13 +671,13 @@ const totalSpendCompleted = useMemo(() => {
                   </button>
                 </div>
 
-                {orders.length === 0 ? (
+                {nonDeliveredOrders.length === 0 ? (
                   <div className="rounded-3xl border border-white/10 bg-white/5 p-8">
                     <p className="text-white font-extrabold text-lg">
-                      No projects yet
+                      No active projects
                     </p>
                     <p className="text-white/60 text-sm mt-1">
-                      Create your first order from Marketplace.
+                      Delivered orders move to Delivered Products tab.
                     </p>
                   </div>
                 ) : (
@@ -665,7 +686,7 @@ const totalSpendCompleted = useMemo(() => {
                     <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
                       <p className="text-white font-extrabold">Orders</p>
                       <div className="mt-4 space-y-2 max-h-[520px] overflow-auto pr-1">
-                        {orders.map((o) => (
+                        {nonDeliveredOrders.map((o) => (
                           <button
                             key={o.id}
                             onClick={() => setSelectedOrder(o)}
@@ -700,151 +721,79 @@ const totalSpendCompleted = useMemo(() => {
                           Select an order to view details.
                         </p>
                       ) : (
-                        <div>
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-white font-extrabold text-xl">
-                                {selectedOrder.project_title ?? "Untitled"}
-                              </p>
-                              <p className="text-white/60 text-xs mt-1">
-                                Created:{" "}
-                                {new Date(
-                                  selectedOrder.created_at
-                                ).toLocaleString()}
-                              </p>
+                        <OrderDetailsPanel selectedOrder={selectedOrder} />
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ✅ DELIVERED PRODUCTS */}
+            {activeTab === "delivered" && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-white font-extrabold text-lg">
+                    Delivered Products
+                  </p>
+
+                  <button
+                    onClick={() => setActiveTab("projects")}
+                    className="px-4 py-2 rounded-2xl border border-white/10 bg-white/10 text-white font-bold hover:bg-white/15 transition"
+                  >
+                    Back to Projects
+                  </button>
+                </div>
+
+                {deliveredOrders.length === 0 ? (
+                  <div className="rounded-3xl border border-white/10 bg-white/5 p-8">
+                    <p className="text-white font-extrabold text-lg">
+                      No delivered orders yet
+                    </p>
+                    <p className="text-white/60 text-sm mt-1">
+                      Delivered orders will appear here once creators submit final content.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-4">
+                    <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+                      <p className="text-white font-extrabold">Delivered Orders</p>
+                      <div className="mt-4 space-y-2 max-h-[520px] overflow-auto pr-1">
+                        {deliveredOrders.map((o) => (
+                          <button
+                            key={o.id}
+                            onClick={() => setSelectedOrder(o)}
+                            className={[
+                              "w-full text-left rounded-2xl p-4 border transition",
+                              selectedOrder?.id === o.id
+                                ? "border-emerald-400/40 bg-emerald-500/10"
+                                : "border-white/10 bg-black/20 hover:bg-black/30",
+                            ].join(" ")}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="text-white font-bold">
+                                  {o.project_title ?? "Untitled"}
+                                </p>
+                                <p className="text-white/60 text-xs mt-1">
+                                  {o.product_name ?? "-"} •{" "}
+                                  {o.video_type ?? "Video"}
+                                </p>
+                              </div>
+                              <StatusPill status={o.status} />
                             </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
-                            <StatusPill status={selectedOrder.status} />
-                          </div>
-
-                          <div className="mt-5 grid sm:grid-cols-2 gap-3">
-                            <InfoBox
-                              label="Product / Brand"
-                              value={selectedOrder.product_name ?? "-"}
-                            />
-                            <InfoBox
-                              label="Video type"
-                              value={selectedOrder.video_type ?? "-"}
-                            />
-                            <InfoBox
-                              label="Deadline (days)"
-                              value={
-                                selectedOrder.deadline_days
-                                  ? String(selectedOrder.deadline_days)
-                                  : "-"
-                              }
-                            />
-                            <InfoBox
-                              label="Price"
-                              value={
-                                selectedOrder.price
-                                  ? `₹${selectedOrder.price}`
-                                  : "-"
-                              }
-                            />
-                          </div>
-
-                          <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
-                            <p className="text-white font-bold text-sm">
-                              Brief / requirements
-                            </p>
-                            <p className="text-white/70 text-sm mt-2 leading-relaxed">
-                              {selectedOrder.project_brief ?? "-"}
-                            </p>
-                          </div>
-
-                          {/* ✅ Startup uploaded product media */}
-                          <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4">
-                            <p className="text-white font-bold text-sm mb-2">
-                              Product Media (uploaded by startup)
-                            </p>
-
-                            {(selectedOrder.product_media_urls ?? []).length ===
-                            0 ? (
-                              <p className="text-white/60 text-sm">
-                                No product media uploaded.
-                              </p>
-                            ) : (
-                              <div className="grid sm:grid-cols-2 gap-3">
-                                {(selectedOrder.product_media_urls ?? []).map(
-                                  (url, idx) => {
-                                    const lower = url.toLowerCase();
-                                    const isVideo =
-                                      lower.endsWith(".mp4") ||
-                                      lower.endsWith(".mov") ||
-                                      lower.endsWith(".webm");
-
-                                    if (isVideo) {
-                                      return (
-                                        <div
-                                          key={idx}
-                                          className="rounded-xl overflow-hidden border border-white/10 bg-black/30"
-                                        >
-                                          <video
-                                            controls
-                                            className="w-full h-[220px] bg-black object-contain"
-                                            src={url}
-                                          />
-                                        </div>
-                                      );
-                                    }
-
-                                    return (
-                                      <a
-                                        key={idx}
-                                        href={url}
-                                        target="_blank"
-                                        className="rounded-xl overflow-hidden border border-white/10 bg-black/30 block"
-                                      >
-                                        <img
-                                          src={url}
-                                          alt="product"
-                                          className="w-full h-[220px] object-cover"
-                                        />
-                                      </a>
-                                    );
-                                  }
-                                )}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* ✅ Creator Delivery visible */}
-                          <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4">
-                            <p className="text-white font-bold text-sm mb-2">
-                              Creator Delivery
-                            </p>
-
-                            {!selectedOrder.final_video_url &&
-                            !selectedOrder.final_drive_link ? (
-                              <p className="text-white/60 text-sm">
-                                No delivery uploaded yet.
-                              </p>
-                            ) : (
-                              <div className="space-y-3">
-                                {selectedOrder.final_video_url && (
-                                  <div className="rounded-xl overflow-hidden border border-white/10 bg-black/30">
-                                    <video
-                                      controls
-                                      className="w-full max-h-[420px] bg-black object-contain"
-                                      src={selectedOrder.final_video_url}
-                                    />
-                                  </div>
-                                )}
-
-                                {selectedOrder.final_drive_link && (
-                                  <a
-                                    href={selectedOrder.final_drive_link}
-                                    target="_blank"
-                                    className="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-black-600 hover:bg-black-500 transition font-bold text-white"
-                                  >
-                                    Open Drive Link
-                                  </a>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                    <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+                      {!selectedOrder ? (
+                        <p className="text-white/60 text-sm">
+                          Select a delivered order to view details.
+                        </p>
+                      ) : (
+                        <OrderDetailsPanel selectedOrder={selectedOrder} />
                       )}
                     </div>
                   </div>
@@ -961,6 +910,7 @@ function StatusPill({ status }: { status: string }) {
     accepted: "bg-blue-500/20 text-blue-200",
     in_progress: "bg-indigo-500/20 text-indigo-200",
     submitted: "bg-amber-500/20 text-amber-200",
+    delivered: "bg-emerald-500/20 text-emerald-200",
     completed: "bg-emerald-500/20 text-emerald-200",
     cancelled: "bg-red-500/20 text-red-200",
     rejected: "bg-red-500/20 text-red-200",
@@ -1014,7 +964,6 @@ function CreatorCard({
 
   return (
     <div className="rounded-3xl border border-white/10 bg-white/5 overflow-hidden hover:bg-white/10 transition">
-      {/* ✅ Thumbnail */}
       <div className="relative">
         <img
           src={thumb}
@@ -1063,6 +1012,129 @@ function CreatorCard({
             Hire
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* -------------------- Reusable Order Panel -------------------- */
+
+function OrderDetailsPanel({ selectedOrder }: { selectedOrder: OrderRow }) {
+  return (
+    <div>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-white font-extrabold text-xl">
+            {selectedOrder.project_title ?? "Untitled"}
+          </p>
+          <p className="text-white/60 text-xs mt-1">
+            Created: {new Date(selectedOrder.created_at).toLocaleString()}
+          </p>
+        </div>
+
+        <StatusPill status={selectedOrder.status} />
+      </div>
+
+      <div className="mt-5 grid sm:grid-cols-2 gap-3">
+        <InfoBox label="Product / Brand" value={selectedOrder.product_name ?? "-"} />
+        <InfoBox label="Video type" value={selectedOrder.video_type ?? "-"} />
+        <InfoBox
+          label="Deadline (days)"
+          value={selectedOrder.deadline_days ? String(selectedOrder.deadline_days) : "-"}
+        />
+        <InfoBox
+          label="Price"
+          value={selectedOrder.price ? `₹${selectedOrder.price}` : "-"}
+        />
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+        <p className="text-white font-bold text-sm">Brief / requirements</p>
+        <p className="text-white/70 text-sm mt-2 leading-relaxed">
+          {selectedOrder.project_brief ?? "-"}
+        </p>
+      </div>
+
+      {/* ✅ Startup uploaded product media */}
+      <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4">
+        <p className="text-white font-bold text-sm mb-2">
+          Product Media (uploaded by startup)
+        </p>
+
+        {(selectedOrder.product_media_urls ?? []).length === 0 ? (
+          <p className="text-white/60 text-sm">No product media uploaded.</p>
+        ) : (
+          <div className="grid sm:grid-cols-2 gap-3">
+            {(selectedOrder.product_media_urls ?? []).map((url, idx) => {
+              const lower = url.toLowerCase();
+              const isVideo =
+                lower.endsWith(".mp4") ||
+                lower.endsWith(".mov") ||
+                lower.endsWith(".webm");
+
+              if (isVideo) {
+                return (
+                  <div
+                    key={idx}
+                    className="rounded-xl overflow-hidden border border-white/10 bg-black/30"
+                  >
+                    <video
+                      controls
+                      className="w-full h-[220px] bg-black object-contain"
+                      src={url}
+                    />
+                  </div>
+                );
+              }
+
+              return (
+                <a
+                  key={idx}
+                  href={url}
+                  target="_blank"
+                  className="rounded-xl overflow-hidden border border-white/10 bg-black/30 block"
+                >
+                  <img
+                    src={url}
+                    alt="product"
+                    className="w-full h-[220px] object-cover"
+                  />
+                </a>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ✅ Creator Delivery visible */}
+      <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4">
+        <p className="text-white font-bold text-sm mb-2">Creator Delivery</p>
+
+        {!selectedOrder.final_video_url && !selectedOrder.final_drive_link ? (
+          <p className="text-white/60 text-sm">No delivery uploaded yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {selectedOrder.final_video_url && (
+              <div className="rounded-xl overflow-hidden border border-white/10 bg-black/30">
+                <video
+                  controls
+                  className="w-full max-h-[420px] bg-black object-contain"
+                  src={selectedOrder.final_video_url}
+                />
+              </div>
+            )}
+
+            {selectedOrder.final_drive_link && (
+              <a
+                href={selectedOrder.final_drive_link}
+                target="_blank"
+                className="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-white/10 border border-white/10 hover:bg-white/15 transition font-bold text-white"
+              >
+                Open Drive Link
+              </a>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1121,8 +1193,7 @@ function HireModal(props: {
               Hire {props.creatorName}
             </p>
             <p className="text-white/60 text-sm mt-1">
-              Fill required details. Optional fields help creators deliver
-              faster.
+              Fill required details. Optional fields help creators deliver faster.
             </p>
           </div>
 
@@ -1160,16 +1231,10 @@ function HireModal(props: {
                 onChange={(e) => props.setVideoType(e.target.value)}
                 className="w-full rounded-2xl border border-white/10 bg-white/10 p-3 text-white outline-none focus:border-white/25"
               >
-                <option className="bg-white text-black">
-                  1 Reel (15-30 sec)
-                </option>
-                <option className="bg-white text-black">
-                  1 Reel (30-45 sec)
-                </option>
+                <option className="bg-white text-black">1 Reel (15-30 sec)</option>
+                <option className="bg-white text-black">1 Reel (30-45 sec)</option>
                 <option className="bg-white text-black">2 Reels Package</option>
-                <option className="bg-white text-black">
-                  1 Product Demo Video
-                </option>
+                <option className="bg-white text-black">1 Product Demo Video</option>
                 <option className="bg-white text-black">UGC Testimonial</option>
               </select>
             </Field>
@@ -1226,7 +1291,7 @@ function HireModal(props: {
             />
           </Field>
 
-          {/* ✅ NEW Upload section */}
+          {/* ✅ Upload section */}
           <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
             <p className="text-white font-bold text-sm mb-2">
               Upload product images/videos (optional, but required for physical)
