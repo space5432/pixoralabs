@@ -34,8 +34,7 @@ type OrderRow = {
   instagram_handle?: string | null;
   deadline_days?: number | null;
 
-  // ✅ IMPORTANT: startup uses price, older code may use budget
-  budget?: number | null;
+  // ✅ IMPORTANT: Your startup page uses "price" not "budget"
   price?: number | null;
 
   created_at: string;
@@ -67,17 +66,15 @@ export default function CreatorDashboardPage() {
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [search, setSearch] = useState("");
 
-  // Full order view in dashboard section (your current behavior)
+  // Full order view
   const [selectedOrder, setSelectedOrder] = useState<OrderRow | null>(null);
 
   // ✅ Delivery mode: upload OR drive
   const [deliveryMode, setDeliveryMode] = useState<"upload" | "drive">("upload");
 
-  // ✅ Inputs must always be string (no undefined)
   const [driveLink, setDriveLink] = useState("");
   const [deliveryNote, setDeliveryNote] = useState("");
 
-  // ✅ File select + confirm upload
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -162,14 +159,15 @@ export default function CreatorDashboardPage() {
     });
   }, [orders, search]);
 
-  // ✅ Creator earnings only after COMPLETED
+  // ✅ CHANGE 1: Completed Earnings should be from DELIVERED orders
+  // (You asked: "completeearning on basis of order delivered")
   const completedEarnings = useMemo(() => {
     return orders
-      .filter((o) => o.status === "completed")
-      .reduce((sum, o) => sum + Number(o.price ?? o.budget ?? 0), 0);
+      .filter((o) => o.status === "delivered")
+      .reduce((sum, o) => sum + (o.price ?? 0), 0);
   }, [orders]);
 
-  // ✅ Weekly chart values (last 7 days) from completed orders
+  // ✅ Weekly chart based on delivered orders
   const weekly = useMemo<WeekPoint[]>(() => {
     const now = new Date();
     const arr: WeekPoint[] = [];
@@ -182,9 +180,9 @@ export default function CreatorDashboardPage() {
       const label = d.toLocaleDateString(undefined, { weekday: "short" });
 
       const value = orders
-        .filter((o) => o.status === "completed")
+        .filter((o) => o.status === "delivered")
         .filter((o) => (o.updated_at ?? o.created_at).slice(0, 10) === key)
-        .reduce((sum, o) => sum + Number(o.price ?? o.budget ?? 0), 0);
+        .reduce((sum, o) => sum + (o.price ?? 0), 0);
 
       arr.push({ label, value });
     }
@@ -194,18 +192,15 @@ export default function CreatorDashboardPage() {
 
   const weeklyMax = Math.max(...weekly.map((x) => x.value), 1);
 
-  // ✅ Open order (keeps your same full-page view flow)
   const openOrder = (o: OrderRow) => {
     setSelectedOrder(o);
 
-    // ✅ reset UI safely
     setDeliveryMode("upload");
     setDriveLink(o.final_drive_link ?? "");
     setDeliveryNote(o.delivery_note ?? "");
     setSelectedFile(null);
   };
 
-  // ✅ ACCEPT / REJECT
   const acceptOrder = async (orderId: string) => {
     if (!profile?.id) return;
 
@@ -216,22 +211,14 @@ export default function CreatorDashboardPage() {
 
     if (error) return alert(error.message);
 
-    // ✅ refresh list
+    alert("✅ Order accepted");
     await refreshOrders(profile.id);
 
-    // ✅ fetch updated order and open it directly
-    const { data: updatedOrder, error: fetchErr } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("id", orderId)
-      .maybeSingle();
-
-    if (!fetchErr && updatedOrder) {
-      openOrder(updatedOrder as OrderRow);
+    // ✅ keep open on same order after accept
+    const latest = orders.find((x) => x.id === orderId);
+    if (latest) {
+      setSelectedOrder({ ...latest, status: "in_progress" });
     }
-
-    setTab("orders");
-    alert("✅ Order accepted");
   };
 
   const rejectOrder = async (orderId: string) => {
@@ -249,7 +236,6 @@ export default function CreatorDashboardPage() {
     setSelectedOrder(null);
   };
 
-  // ✅ Upload MP4 but ONLY when user clicks Confirm Upload
   const uploadSelectedFile = async (orderId: string) => {
     if (!profile?.id) return;
     if (!selectedFile) {
@@ -260,7 +246,7 @@ export default function CreatorDashboardPage() {
     setUploading(true);
 
     try {
-      const bucket = "creator-deliveries"; // ✅ bucket must exist
+      const bucket = "creator-deliveries";
       const ext = selectedFile.name.split(".").pop() || "mp4";
       const path = `${profile.id}/deliveries/order-${orderId}-${Date.now()}.${ext}`;
 
@@ -295,20 +281,16 @@ export default function CreatorDashboardPage() {
       }
 
       alert("✅ Delivered successfully (MP4 uploaded)!");
+
       setSelectedFile(null);
       setDeliveryNote("");
       setDriveLink("");
 
       await refreshOrders(profile.id);
 
-      // ✅ Keep updated order open
-      const { data: updatedOrder } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("id", orderId)
-        .maybeSingle();
-
-      if (updatedOrder) openOrder(updatedOrder as OrderRow);
+      // ✅ CHANGE 2: After delivery, go to Deliveries tab automatically
+      setSelectedOrder(null);
+      setTab("deliveries");
     } catch (e: any) {
       alert("Upload failed: " + (e?.message ?? "Unknown error"));
     } finally {
@@ -316,12 +298,10 @@ export default function CreatorDashboardPage() {
     }
   };
 
-  // ✅ Drive link delivery
   const deliverDriveLink = async (orderId: string) => {
     if (!profile?.id) return;
 
     const link = driveLink.trim();
-
     if (!link.startsWith("http")) {
       alert("Please paste a valid Drive link.");
       return;
@@ -344,20 +324,16 @@ export default function CreatorDashboardPage() {
     }
 
     alert("✅ Delivered successfully (Drive link submitted)!");
+
     setDeliveryNote("");
     setDriveLink("");
     setSelectedFile(null);
 
     await refreshOrders(profile.id);
 
-    // ✅ Keep updated order open
-    const { data: updatedOrder } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("id", orderId)
-      .maybeSingle();
-
-    if (updatedOrder) openOrder(updatedOrder as OrderRow);
+    // ✅ CHANGE 2: After delivery, go to Deliveries tab automatically
+    setSelectedOrder(null);
+    setTab("deliveries");
   };
 
   const removeSelectedFile = () => {
@@ -407,7 +383,7 @@ export default function CreatorDashboardPage() {
 
                 <button
                   onClick={() => router.push("/profile/view")}
-                  className="h-11 w-11 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/8 transition text-white"
+                  className="h-11 w-11 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition text-white"
                   title="Profile"
                 >
                   👤
@@ -415,7 +391,7 @@ export default function CreatorDashboardPage() {
 
                 <button
                   onClick={logout}
-                  className="rounded-2xl bg-white/8 border border-white/10 text-white font-bold px-5 py-3 hover:bg-white/12 transition"
+                  className="rounded-2xl bg-white/10 border border-white/10 text-white font-bold px-5 py-3 hover:bg-white/15 transition"
                 >
                   Logout
                 </button>
@@ -424,7 +400,6 @@ export default function CreatorDashboardPage() {
 
             {/* Body */}
             <div className="p-7">
-              {/* Header */}
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
                 <div>
                   <h1 className="text-3xl font-extrabold text-white">
@@ -438,7 +413,7 @@ export default function CreatorDashboardPage() {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => router.push("/profile/view")}
-                    className="rounded-2xl bg-white/6 border border-white/10 text-white font-bold px-5 py-3 hover:bg-white/10 transition"
+                    className="rounded-2xl bg-white/10 border border-white/10 text-white font-bold px-5 py-3 hover:bg-white/15 transition"
                   >
                     View Profile
                   </button>
@@ -451,7 +426,6 @@ export default function CreatorDashboardPage() {
                 </div>
               </div>
 
-              {/* Tabs */}
               <div className="mt-7 flex gap-2 flex-wrap">
                 <TabDark active={tab === "dashboard"} onClick={() => setTab("dashboard")}>
                   Dashboard
@@ -459,7 +433,10 @@ export default function CreatorDashboardPage() {
                 <TabDark active={tab === "orders"} onClick={() => setTab("orders")}>
                   Orders
                 </TabDark>
-                <TabDark active={tab === "deliveries"} onClick={() => setTab("deliveries")}>
+                <TabDark
+                  active={tab === "deliveries"}
+                  onClick={() => setTab("deliveries")}
+                >
                   Deliveries
                 </TabDark>
                 <TabDark active={tab === "profile"} onClick={() => setTab("profile")}>
@@ -467,14 +444,13 @@ export default function CreatorDashboardPage() {
                 </TabDark>
               </div>
 
-              {/* ✅ Dashboard tab */}
               {!selectedOrder && tab === "dashboard" && (
                 <>
                   <div className="mt-7 grid grid-cols-1 lg:grid-cols-3 gap-5">
                     <MetricCard
                       title="Completed Earnings"
                       value={`₹ ${completedEarnings}`}
-                      sub="Earned after approval"
+                      sub="Based on delivered orders"
                       icon="💰"
                     />
                     <MetricCard
@@ -485,13 +461,14 @@ export default function CreatorDashboardPage() {
                     />
                     <MetricCard
                       title="Active Work"
-                      value={`${orders.filter((o) => o.status === "in_progress" || o.status === "revision_requested").length}`}
+                      value={`${orders.filter((o) =>
+                        ["in_progress", "revision_requested"].includes(o.status)
+                      ).length}`}
                       sub="Deliver your best"
                       icon="🎬"
                     />
                   </div>
 
-                  {/* ✅ Weekly earnings chart */}
                   <div className="mt-6 rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl p-6">
                     <div className="flex items-end justify-between gap-4">
                       <div>
@@ -499,7 +476,7 @@ export default function CreatorDashboardPage() {
                           Earnings Analytics
                         </p>
                         <p className="text-sm text-white/60 mt-1">
-                          Weekly view (completed orders)
+                          Weekly view (delivered orders)
                         </p>
                       </div>
                       <p className="text-sm text-white/55">Last 7 days</p>
@@ -507,7 +484,10 @@ export default function CreatorDashboardPage() {
 
                     <div className="mt-6 grid grid-cols-7 gap-3 items-end h-[140px]">
                       {weekly.map((w) => (
-                        <div key={w.label} className="flex flex-col items-center gap-2">
+                        <div
+                          key={w.label}
+                          className="flex flex-col items-center gap-2"
+                        >
                           <div className="w-full h-[110px] flex items-end">
                             <div
                               className="w-full rounded-2xl bg-white/10 border border-white/10"
@@ -528,7 +508,6 @@ export default function CreatorDashboardPage() {
                 </>
               )}
 
-              {/* Orders list */}
               {!selectedOrder && tab === "orders" && (
                 <div className="mt-7 space-y-4">
                   {filteredOrders.length === 0 ? (
@@ -548,20 +527,72 @@ export default function CreatorDashboardPage() {
                 </div>
               )}
 
-              {/* Deliveries tab */}
               {!selectedOrder && tab === "deliveries" && (
-                <div className="mt-7 rounded-3xl border border-white/10 bg-white/5 p-6">
-                  <p className="text-white font-extrabold text-lg">Deliveries</p>
-                  <p className="text-sm text-white/60 mt-1">
-                    Open an order and upload delivery or Drive link.
-                  </p>
+                <div className="mt-7 space-y-4">
+                  <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+                    <p className="text-white font-extrabold text-lg">Deliveries</p>
+                    <p className="text-sm text-white/60 mt-1">
+                      Your delivered orders will show here automatically.
+                    </p>
+                  </div>
+
+                  {orders.filter((o) => o.status === "delivered").length === 0 ? (
+                    <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+                      <p className="text-white font-bold">No deliveries yet</p>
+                      <p className="text-sm text-white/60 mt-1">
+                        Deliver an order and it will appear here.
+                      </p>
+                    </div>
+                  ) : (
+                    orders
+                      .filter((o) => o.status === "delivered")
+                      .map((o) => (
+                        <div
+                          key={o.id}
+                          className="rounded-3xl border border-white/10 bg-white/5 p-5"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              <p className="text-white font-extrabold text-lg">
+                                {o.project_title ?? "Untitled"}
+                              </p>
+                              <p className="text-sm text-white/60 mt-1">
+                                {o.company_name ?? "Startup"} •{" "}
+                                {o.product_name ?? "Product"}
+                              </p>
+                              <p className="text-xs text-white/45 mt-2">
+                                Delivered:{" "}
+                                {new Date(o.updated_at ?? o.created_at).toLocaleString()}
+                              </p>
+                            </div>
+
+                            <button
+                              onClick={() => openOrder(o)}
+                              className="rounded-2xl bg-gradient-to-r from-[#6d5dfc] to-[#4b7bff] text-white font-extrabold px-4 py-2 hover:opacity-95 transition"
+                            >
+                              View
+                            </button>
+                          </div>
+
+                          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <InfoBox label="Status" value={o.status} />
+                            <InfoBox label="Budget" value={`₹ ${o.price ?? 0}`} />
+                            <InfoBox
+                              label="Deadline"
+                              value={`${o.deadline_days ?? "-"} days`}
+                            />
+                          </div>
+                        </div>
+                      ))
+                  )}
                 </div>
               )}
 
-              {/* Profile */}
               {!selectedOrder && tab === "profile" && (
                 <div className="mt-7 rounded-3xl border border-white/10 bg-white/5 p-6">
-                  <p className="text-white font-extrabold text-lg">Creator Profile</p>
+                  <p className="text-white font-extrabold text-lg">
+                    Creator Profile
+                  </p>
                   <p className="text-sm text-white/60 mt-1">
                     View or edit your profile.
                   </p>
@@ -569,7 +600,7 @@ export default function CreatorDashboardPage() {
                   <div className="mt-5 flex gap-3 flex-wrap">
                     <button
                       onClick={() => router.push("/profile/view")}
-                      className="rounded-2xl bg-white/7 border border-white/10 text-white font-bold px-5 py-3 hover:bg-white/10 transition"
+                      className="rounded-2xl bg-white/10 border border-white/10 text-white font-bold px-5 py-3 hover:bg-white/15 transition"
                     >
                       View Profile
                     </button>
@@ -584,7 +615,6 @@ export default function CreatorDashboardPage() {
                 </div>
               )}
 
-              {/* ✅ FULL ORDER VIEW */}
               {selectedOrder && (
                 <div className="mt-7 rounded-3xl border border-white/10 bg-white/5 p-6">
                   <div className="flex items-start justify-between gap-4">
@@ -600,7 +630,7 @@ export default function CreatorDashboardPage() {
 
                     <button
                       onClick={() => setSelectedOrder(null)}
-                      className="rounded-2xl bg-white/7 border border-white/10 text-white font-bold px-4 py-2 hover:bg-white/10 transition"
+                      className="rounded-2xl bg-white/10 border border-white/10 text-white font-bold px-4 py-2 hover:bg-white/15 transition"
                     >
                       Back
                     </button>
@@ -608,10 +638,7 @@ export default function CreatorDashboardPage() {
 
                   <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
                     <InfoBox label="Status" value={selectedOrder.status} />
-                    <InfoBox
-                      label="Budget"
-                      value={`₹ ${Number(selectedOrder.price ?? selectedOrder.budget ?? 0)}`}
-                    />
+                    <InfoBox label="Budget" value={`₹ ${selectedOrder.price ?? 0}`} />
                     <InfoBox
                       label="Deadline"
                       value={`${selectedOrder.deadline_days ?? "-"} days`}
@@ -627,7 +654,6 @@ export default function CreatorDashboardPage() {
                     </div>
                   </div>
 
-                  {/* Revision note */}
                   {selectedOrder.revision_note && (
                     <div className="mt-5 rounded-3xl border border-amber-500/20 bg-amber-500/10 p-4">
                       <p className="text-amber-200 font-extrabold">
@@ -639,12 +665,11 @@ export default function CreatorDashboardPage() {
                     </div>
                   )}
 
-                  {/* Pending actions */}
                   {selectedOrder.status === "pending" && (
                     <div className="mt-6 flex gap-3">
                       <button
                         onClick={() => rejectOrder(selectedOrder.id)}
-                        className="flex-1 rounded-2xl bg-white/7 border border-white/10 text-white font-extrabold py-3 hover:bg-white/10 transition"
+                        className="flex-1 rounded-2xl bg-white/10 border border-white/10 text-white font-extrabold py-3 hover:bg-white/15 transition"
                       >
                         Reject
                       </button>
@@ -657,7 +682,6 @@ export default function CreatorDashboardPage() {
                     </div>
                   )}
 
-                  {/* ✅ Delivery section */}
                   {(selectedOrder.status === "in_progress" ||
                     selectedOrder.status === "revision_requested") && (
                     <div className="mt-6 rounded-3xl border border-white/10 bg-gradient-to-b from-white/10 to-white/5 p-5 shadow-lg">
@@ -668,15 +692,14 @@ export default function CreatorDashboardPage() {
                         Choose Upload MP4 OR Drive link. Then click Confirm.
                       </p>
 
-                      {/* mode switch */}
                       <div className="mt-4 flex gap-2 flex-wrap">
                         <button
                           onClick={() => setDeliveryMode("upload")}
                           className={[
                             "px-4 py-2 rounded-2xl border text-sm font-bold transition",
                             deliveryMode === "upload"
-                              ? "bg-white/10 border-white/15 text-white"
-                              : "bg-white/5 border-white/10 text-white/65 hover:bg-white/8 hover:text-white",
+                              ? "bg-white/10 border-white/20 text-white"
+                              : "bg-white/5 border-white/10 text-white/65 hover:bg-white/10 hover:text-white",
                           ].join(" ")}
                         >
                           Upload MP4
@@ -687,15 +710,14 @@ export default function CreatorDashboardPage() {
                           className={[
                             "px-4 py-2 rounded-2xl border text-sm font-bold transition",
                             deliveryMode === "drive"
-                              ? "bg-white/10 border-white/15 text-white"
-                              : "bg-white/5 border-white/10 text-white/65 hover:bg-white/8 hover:text-white",
+                              ? "bg-white/10 border-white/20 text-white"
+                              : "bg-white/5 border-white/10 text-white/65 hover:bg-white/10 hover:text-white",
                           ].join(" ")}
                         >
                           Drive Link
                         </button>
                       </div>
 
-                      {/* delivery note */}
                       <div className="mt-4">
                         <p className="text-sm text-white/70 font-bold mb-2">
                           Delivery note (optional)
@@ -704,11 +726,10 @@ export default function CreatorDashboardPage() {
                           value={deliveryNote}
                           onChange={(e) => setDeliveryNote(e.target.value)}
                           className="w-full min-h-[90px] rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none focus:border-white/20 placeholder:text-white/35"
-                          placeholder="Explain what you delivered, hook style, timings..."
+                          placeholder="Explain what you delivered..."
                         />
                       </div>
 
-                      {/* DRIVE LINK UI */}
                       {deliveryMode === "drive" && (
                         <div className="mt-4">
                           <p className="text-sm text-white/70 font-bold mb-2">
@@ -731,7 +752,6 @@ export default function CreatorDashboardPage() {
                         </div>
                       )}
 
-                      {/* MP4 UPLOAD UI */}
                       {deliveryMode === "upload" && (
                         <div className="mt-4">
                           <p className="text-sm text-white/70 font-bold mb-2">
@@ -784,7 +804,6 @@ export default function CreatorDashboardPage() {
                     </div>
                   )}
 
-                  {/* Delivered output */}
                   {(selectedOrder.final_video_url || selectedOrder.final_drive_link) && (
                     <div className="mt-6 rounded-3xl border border-white/10 bg-white/5 p-5">
                       <p className="text-white font-extrabold">Your Delivery</p>
@@ -844,8 +863,8 @@ function TabDark({
       className={[
         "rounded-2xl px-4 py-2 border font-bold transition text-sm",
         active
-          ? "bg-white/10 border-white/15 text-white"
-          : "bg-white/5 border-white/10 text-white/65 hover:bg-white/8 hover:text-white",
+          ? "bg-white/10 border-white/20 text-white"
+          : "bg-white/5 border-white/10 text-white/65 hover:bg-white/10 hover:text-white",
       ].join(" ")}
     >
       {children}
@@ -873,7 +892,7 @@ function MetricCard({
           <p className="text-sm text-emerald-300/80 mt-2">{sub}</p>
         </div>
 
-        <div className="h-11 w-11 rounded-2xl bg-white/6 border border-white/10 flex items-center justify-center text-white/85">
+        <div className="h-11 w-11 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center text-white/85">
           {icon}
         </div>
       </div>
@@ -889,7 +908,7 @@ function OrderCardCreator({
   onView: () => void;
 }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/5 p-5 hover:bg-white/7 transition">
+    <div className="rounded-3xl border border-white/10 bg-white/5 p-5 hover:bg-white/10 transition">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-white font-extrabold text-lg">
@@ -904,7 +923,7 @@ function OrderCardCreator({
         </div>
 
         <div className="flex flex-col items-end gap-2">
-          <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/8 border border-white/10 text-white/85">
+          <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/10 border border-white/10 text-white/85">
             {o.status}
           </span>
 
