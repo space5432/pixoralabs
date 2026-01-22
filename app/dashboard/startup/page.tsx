@@ -346,11 +346,11 @@ export default function StartupDashboardPage() {
     setActiveTab("projects");
   };
 
-  const totalSpendCompleted = useMemo(() => {
-    return orders
-      .filter((o) => o.status === "completed")
-      .reduce((sum, o) => sum + (o.price ?? 0), 0);
-  }, [orders]);
+const totalSpendCompleted = useMemo(() => {
+  return orders
+    .filter((o) => o.status === "delivered")
+    .reduce((sum, o) => sum + (o.price ?? 0), 0);
+}, [orders]);
 
   const activeProjectsCount = useMemo(() => {
     return orders.filter((o) =>
